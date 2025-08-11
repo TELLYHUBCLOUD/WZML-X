@@ -26,7 +26,7 @@ class BotCommands:
         "CancelTask": ["cancel", "c"],
         "CancelAll": ["cancelall", "call"],
         "ForceStart": ["forcestart", "fs"],
-        "Status": ["status", "s", "statusall"],
+        "Status": ["status", "s", "statusall", "sall"],
         "MediaInfo": ["mediainfo", "mi"],
         "Ping": "ping",
         "Restart": ["restart", "r", "restartall"],
@@ -80,7 +80,7 @@ class BotCommands:
                 [
                     (
                         f"{cmd}{Config.CMD_SUFFIX}"
-                        if cmd not in ["restartall", "statusall"]
+                        if cmd not in ["restartall", "statusall", "sall"]
                         else cmd
                     )
                     for cmd in cmds
