@@ -1136,12 +1136,43 @@ def uploadee(url):
 
 
 def terabox(url):
-    try:
-        encoded_url = quote(url)
-        final_url = f"https://teradlrobot.cheemsbackup.workers.dev/?url={encoded_url}"
-        return final_url
-    except Exception as e:
-        raise DirectDownloadLinkException("Failed to bypass Terabox URL")
+    """
+    Terabox direct link generator with fallback APIs.
+    Returns a direct download link or raises DirectDownloadLinkException.
+    """
+    # Validate Terabox URL
+    pattern = r"/s/(\w+)|surl=(\w+)"
+    if not re.search(pattern, url):
+        raise DirectDownloadLinkException("❌ ERROR: Invalid terabox URL")
+
+    # Prepare APIs
+    proxy_base = "YvZNLrCteHuikuWkUB2ZCVO9s8K0ZxQYMsR10sIw"
+    user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:126.0) Gecko/20100101 Firefox/126.0"
+    apis = [
+        f"https://terabox.ashlynn.workers.dev/?link={quote(url)}&cookies=ndus={proxy_base}",
+        f"https://teradl1.tellycloudapi.workers.dev/api/api1?url={quote(url)}",
+    ]
+
+    with Session() as session:
+        session.headers.update({"User-Agent": user_agent})
+
+        for api_url in apis:
+            try:
+                req = session.get(api_url, timeout=15).json()
+            except Exception:
+                continue  # Try next API if failed
+
+            # API 1 structure
+            if "proxy_url" in req and "file_name" in req:
+                return req["proxy_url"]
+
+            # API 2 structure
+            if req.get("success") and "links" in req:
+                return req["links"].get("dl2") or req["links"].get("dl1")
+
+    # If all APIs fail
+    raise DirectDownloadLinkException("❌ ERROR: File not found or both API requests failed!")
+
 
 
 def filepress(url):
