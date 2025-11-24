@@ -425,13 +425,15 @@ async def get_user_settings(from_user, stype="main"):
             or "AS_DOCUMENT" not in user_dict
             and Config.AS_DOCUMENT
         ):
-            ltype = "DOCUMENT"
-            buttons.data_button("Send As Media", f"userset {user_id} tog AS_DOCUMENT f")
-        else:
             ltype = "MEDIA"
             buttons.data_button(
                 "Send As Document", f"userset {user_id} tog AS_DOCUMENT t"
             )
+        else:
+            ltype = "DOCUMENT"
+            buttons.data_button(
+                "Send As Media", f"userset {user_id} tog AS_DOCUMENT f"
+            )            
         if (
             user_dict.get("EQUAL_SPLITS", False)
             or "EQUAL_SPLITS" not in user_dict
