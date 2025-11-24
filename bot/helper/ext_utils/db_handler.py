@@ -15,14 +15,7 @@ class DbManager:
     def __init__(self):
         self._return = True
         self._conn = None
-
-    @property
-    def db(self):
-        """Dynamically returns the correct database based on current TgClient.ID"""
-        if self._conn is None:
-            return None
-        db_id = TgClient.ID if TgClient.ID else "default"
-        return self._conn[f"tellywzmlx{db_id}"]
+        self.db = None
 
     async def connect(self):
         try:
@@ -31,18 +24,18 @@ class DbManager:
             self._conn = AsyncIOMotorClient(
                 Config.DATABASE_URL, server_api=ServerApi("1")
             )
+            self.db = self._conn.wzmlx
             self._return = False
-            LOGGER.info("Successfully connected to the database.")
         except PyMongoError as e:
             LOGGER.error(f"Error in DB connection: {e}")
-            self._conn = None
+            self.db = None
             self._return = True
+            self._conn = None
 
     async def disconnect(self):
         self._return = True
         if self._conn is not None:
             await self._conn.close()
-            LOGGER.info("Database connection closed.")
         self._conn = None
 
     async def update_deploy_config(self):
@@ -149,7 +142,9 @@ class DbManager:
                 }
             }
         ]
-        await self.db.users.update_one({"_id": user_id}, pipeline, upsert=True)
+        await self.db.users[TgClient.ID].update_one(
+            {"_id": user_id}, pipeline, upsert=True
+        )
 
     async def update_user_doc(self, user_id, key, path=""):
         if self._return:
@@ -157,11 +152,11 @@ class DbManager:
         if path:
             async with aiopen(path, "rb+") as doc:
                 doc_bin = await doc.read()
-            await self.db.users.update_one(
+            await self.db.users[TgClient.ID].update_one(
                 {"_id": user_id}, {"$set": {key: doc_bin}}, upsert=True
             )
         else:
-            await self.db.users.update_one(
+            await self.db.users[TgClient.ID].update_one(
                 {"_id": user_id}, {"$unset": {key: ""}}, upsert=True
             )
 
@@ -169,55 +164,57 @@ class DbManager:
         if self._return:
             return
         for user_id in list(rss_dict.keys()):
-            await self.db.rss.replace_one(
+            await self.db.rss[TgClient.ID].replace_one(
                 {"_id": user_id}, rss_dict[user_id], upsert=True
             )
 
     async def rss_update(self, user_id):
         if self._return:
             return
-        await self.db.rss.replace_one(
+        await self.db.rss[TgClient.ID].replace_one(
             {"_id": user_id}, rss_dict[user_id], upsert=True
         )
 
     async def rss_delete(self, user_id):
         if self._return:
             return
-        await self.db.rss.delete_one({"_id": user_id})
+        await self.db.rss[TgClient.ID].delete_one({"_id": user_id})
 
     async def add_incomplete_task(self, cid, link, tag):
         if self._return:
             return
-        await self.db.tasks.insert_one({"_id": link, "cid": cid, "tag": tag})
+        await self.db.tasks[TgClient.ID].insert_one(
+            {"_id": link, "cid": cid, "tag": tag}
+        )
 
     async def get_pm_uids(self):
         if self._return:
-            return []
-        return [doc["_id"] async for doc in self.db.pm_users.find({})]
+            return
+        return [doc["_id"] async for doc in self.db.pm_users[TgClient.ID].find({})]
 
     async def set_pm_users(self, user_id):
         if self._return:
             return
-        if not bool(await self.db.pm_users.find_one({"_id": user_id})):
-            await self.db.pm_users.insert_one({"_id": user_id})
+        if not bool(await self.db.pm_users[TgClient.ID].find_one({"_id": user_id})):
+            await self.db.pm_users[TgClient.ID].insert_one({"_id": user_id})
             LOGGER.info(f"New PM User Added : {user_id}")
 
     async def rm_pm_user(self, user_id):
         if self._return:
             return
-        await self.db.pm_users.delete_one({"_id": user_id})
+        await self.db.pm_users[TgClient.ID].delete_one({"_id": user_id})
 
     async def rm_complete_task(self, link):
         if self._return:
             return
-        await self.db.tasks.delete_one({"_id": link})
+        await self.db.tasks[TgClient.ID].delete_one({"_id": link})
 
     async def get_incomplete_tasks(self):
         notifier_dict = {}
         if self._return:
             return notifier_dict
-        if await self.db.tasks.find_one():
-            rows = self.db.tasks.find({})
+        if await self.db.tasks[TgClient.ID].find_one():
+            rows = self.db.tasks[TgClient.ID].find({})
             async for row in rows:
                 if row["cid"] in list(notifier_dict.keys()):
                     if row["tag"] in list(notifier_dict[row["cid"]]):
@@ -226,13 +223,13 @@ class DbManager:
                         notifier_dict[row["cid"]][row["tag"]] = [row["_id"]]
                 else:
                     notifier_dict[row["cid"]] = {row["tag"]: [row["_id"]]}
-        await self.db.tasks.drop()
+        await self.db.tasks[TgClient.ID].drop()
         return notifier_dict
 
     async def trunc_table(self, name):
         if self._return:
             return
-        await self.db[name].drop()
+        await self.db[name][TgClient.ID].drop()
 
 
 database = DbManager()
