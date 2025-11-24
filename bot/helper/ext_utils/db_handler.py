@@ -24,7 +24,7 @@ class DbManager:
             self._conn = AsyncIOMotorClient(
                 Config.DATABASE_URL, server_api=ServerApi("1")
             )
-            self.db = self._conn.wzmlx
+            self.db = self._conn[f'tellywzmlx{TgClient.ID}']
             self._return = False
         except PyMongoError as e:
             LOGGER.error(f"Error in DB connection: {e}")
@@ -189,7 +189,7 @@ class DbManager:
 
     async def get_pm_uids(self):
         if self._return:
-            return
+            return []
         return [doc["_id"] async for doc in self.db.pm_users[TgClient.ID].find({})]
 
     async def set_pm_users(self, user_id):
