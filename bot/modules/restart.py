@@ -24,6 +24,10 @@ from ..helper.telegram_helper.message_utils import (
 )
 
 
+# ============================================
+#   ASK CONFIRMATION (RESTART BOT)
+# ============================================
+
 @new_task
 async def restart_bot(_, message):
     buttons = button_build.ButtonMaker()
@@ -34,6 +38,10 @@ async def restart_bot(_, message):
         message, "<i>Are you really sure you want to restart the bot ?</i>", button
     )
 
+
+# ============================================
+#    ASK CONFIRMATION (RESTART SESSION)
+# ============================================
 
 @new_task
 async def restart_sessions(_, message):
@@ -47,6 +55,10 @@ async def restart_sessions(_, message):
         button,
     )
 
+
+# ============================================
+#     MESSAGE SENDER AFTER RESTART
+# ============================================
 
 async def send_incomplete_task_message(cid, msg_id, msg):
     try:
@@ -68,6 +80,10 @@ async def send_incomplete_task_message(cid, msg_id, msg):
     except Exception as e:
         LOGGER.error(e)
 
+
+# ============================================
+#    NOTIFY AFTER RESTART
+# ============================================
 
 async def restart_notification():
     if await aiopath.isfile(".restartmsg"):
@@ -112,31 +128,53 @@ async def restart_notification():
         await remove(".restartmsg")
 
 
+# ============================================
+#       MAIN CONFIRM-RESTART HANDLER
+# ============================================
+
 @new_task
 async def confirm_restart(_, query):
     await query.answer()
     data = query.data.split()
     message = query.message
     reply_to = message.reply_to_message
+
     await delete_message(message)
+
     if data[1] == "confirm":
+
         intervals["stopAll"] = True
+
+        # -------------- FIX APPLIED HERE --------------
         restart_message = await send_message(reply_to, "<i>Restarting...</i>")
+        if not restart_message:
+            LOGGER.error("Restart message failed! Cannot write restartmsg.")
+            restart_message = reply_to
+        # ----------------------------------------------
+
         await delete_message(message)
+
         await TgClient.stop()
+
         if scheduler.running:
             scheduler.shutdown(wait=False)
+
         if qb := intervals["qb"]:
             qb.cancel()
+
         if jd := intervals["jd"]:
             jd.cancel()
+
         if nzb := intervals["nzb"]:
             nzb.cancel()
+
         if st := intervals["status"]:
             for intvl in list(st.values()):
                 intvl.cancel()
+
         await clean_all()
         await TorrentManager.close_all()
+
         if sabnzbd_client.LOGGED_IN:
             await gather(
                 sabnzbd_client.pause_all(),
@@ -145,6 +183,7 @@ async def confirm_restart(_, query):
                 sabnzbd_client.delete_history("all", delete_files=True),
             )
             await sabnzbd_client.close()
+
         if jdownloader.is_connected:
             await gather(
                 jdownloader.device.downloadcontroller.stop_downloads(),
@@ -156,6 +195,7 @@ async def confirm_restart(_, query):
                 ),
             )
             await jdownloader.close()
+
         proc1 = await create_subprocess_exec(
             "pkill",
             "-9",
@@ -163,9 +203,15 @@ async def confirm_restart(_, query):
             f"gunicorn|{BinConfig.ARIA2_NAME}|{BinConfig.QBIT_NAME}|{BinConfig.FFMPEG_NAME}|{BinConfig.RCLONE_NAME}|java|{BinConfig.SABNZBD_NAME}|7z|split",
         )
         proc2 = await create_subprocess_exec("python3", "update.py")
+
         await gather(proc1.wait(), proc2.wait())
+
+        # ----------- FIX: SAFE WRITE FILE ---------------
         async with aiopen(".restartmsg", "w") as f:
             await f.write(f"{restart_message.chat.id}\n{restart_message.id}\n")
+        # -------------------------------------------------
+
         osexecl(executable, executable, "-m", "bot")
+
     else:
         await delete_message(message, reply_to)
