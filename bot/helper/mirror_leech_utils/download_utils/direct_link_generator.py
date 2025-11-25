@@ -1145,11 +1145,26 @@ def uploadee(url):
 
 def terabox(url):
     try:
-        encoded_url = quote(url)
-        final_url = f"https://teradlrobot.cheemsbackup.workers.dev/?url={encoded_url}"
-        return final_url
+        encoded = quote(url, safe='')
+        api_url = f"https://terabox-api.tellycloudapi.workers.dev/?url={encoded}"
+        resp = requests.get(api_url, timeout=15)
+        resp.raise_for_status()
+
+        data = resp.json()
+
+        # ✅ Corrected line
+        proxy = data.get("stream_link") or data.get("download_proxy") or data.get("download_link")
+
+        if not proxy:
+            raise DirectDownloadLinkException("API returned no valid URL")
+
+        return proxy
+
+    except DirectDownloadLinkException:
+        raise
     except Exception as e:
-        raise DirectDownloadLinkException("Failed to bypass Terabox URL")
+        raise DirectDownloadLinkException(f"Failed to bypass Terabox URL: {e}")
+
 
 
 def filepress(url):
