@@ -1147,7 +1147,7 @@ def terabox(url):
     try:
         encoded = quote(url, safe='')
         api_url = f"https://terabox-api.tellycloudapi.workers.dev/?url={encoded}"
-        resp = requests.get(api_url, timeout=15)
+        resp = requests.get(api_url, timeout=30)
         resp.raise_for_status()
 
         data = resp.json()
