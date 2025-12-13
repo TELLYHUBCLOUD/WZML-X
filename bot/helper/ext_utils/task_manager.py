@@ -52,7 +52,7 @@ async def stop_duplicate_check(listener):
             listener.user_id,
         )
         if telegraph_content:
-            msg = f"File/Folder is already available in Drive.\nHere are {contents_no} list results:"
+            msg = f"📁 File/Folder is already available in Drive.\n🔍 Here are {contents_no} list results:"
             button = await get_telegraph_list(telegraph_content)
             return msg, button
 
@@ -181,11 +181,11 @@ async def limit_checker(listener, yt_playlist=0):
             if condition and (limit := getattr(Config, attr, 0)):
                 if attr == "PLAYLIST_LIMIT":
                     if yt_playlist >= limit:
-                        limit_exceeded = f"┠ <b>{name} Limit Count</b> → {limit}"
+                        limit_exceeded = f"╞●📋 <b>{name} Limit Count</b> → {limit}"
                 else:
                     byte_limit = limit * 1024**3
                     if size >= byte_limit:
-                        limit_exceeded = f"┠ <b>{name} Limit</b> → {get_readable_file_size(byte_limit)}"
+                        limit_exceeded = f"╞●💾 <b>{name} Limit</b> → {get_readable_file_size(byte_limit)}"
 
                 LOGGER.info(
                     f"{name} Limit Breached: {listener.name} & Size: {get_readable_file_size(size)}"
@@ -194,24 +194,24 @@ async def limit_checker(listener, yt_playlist=0):
         return limit_exceeded
 
     limits = [
-        (listener.is_torrent or listener.is_qbit, "TORRENT_LIMIT", "Torrent"),
-        (listener.is_mega, "MEGA_LIMIT", "Mega"),
-        (listener.is_gdrive, "GD_DL_LIMIT", "GDriveDL"),
-        (listener.is_clone, "CLONE_LIMIT", "Clone"),
-        (listener.is_jd, "JD_LIMIT", "JDownloader"),
-        (listener.is_nzb, "NZB_LIMIT", "SABnzbd"),
-        (listener.is_rclone, "RC_DL_LIMIT", "RCloneDL"),
-        (listener.is_ytdlp, "YTDLP_LIMIT", "YT-DLP"),
-        (bool(yt_playlist), "PLAYLIST_LIMIT", "Playlist"),
-        (True, "DIRECT_LIMIT", "Direct"),
+        (listener.is_torrent or listener.is_qbit, "TORRENT_LIMIT", "Torrent 🌊"),
+        (listener.is_mega, "MEGA_LIMIT", "Mega ☁️"),
+        (listener.is_gdrive, "GD_DL_LIMIT", "GDriveDL 📂"),
+        (listener.is_clone, "CLONE_LIMIT", "Clone ♻️"),
+        (listener.is_jd, "JD_LIMIT", "JDownloader 📥"),
+        (listener.is_nzb, "NZB_LIMIT", "SABnzbd 📦"),
+        (listener.is_rclone, "RC_DL_LIMIT", "RCloneDL ☁️"),
+        (listener.is_ytdlp, "YTDLP_LIMIT", "YT-DLP 📺"),
+        (bool(yt_playlist), "PLAYLIST_LIMIT", "Playlist 🎵"),
+        (True, "DIRECT_LIMIT", "Direct 🔗"),
     ]
     limit_exceeded = await recurr_limits(limits)
 
     if not limit_exceeded:
         extra_limits = [
-            (listener.is_leech, "LEECH_LIMIT", "Leech"),
-            (listener.compress, "ARCHIVE_LIMIT", "Archive"),
-            (listener.extract, "EXTRACT_LIMIT", "Extract"),
+            (listener.is_leech, "LEECH_LIMIT", "Leech 📤"),
+            (listener.compress, "ARCHIVE_LIMIT", "Archive 🗜️"),
+            (listener.extract, "EXTRACT_LIMIT", "Extract 📂"),
         ]
         limit_exceeded = await recurr_limits(extra_limits)
 
@@ -220,10 +220,10 @@ async def limit_checker(listener, yt_playlist=0):
             if not await check_storage_threshold(
                 size, limit, any([listener.compress, listener.extract])
             ):
-                limit_exceeded = f"┠ <b>Threshold Storage Limit</b> → {get_readable_file_size(limit)}"
+                limit_exceeded = f"╞●💿 <b>Threshold Storage Limit</b> → {get_readable_file_size(limit)}"
 
     if limit_exceeded:
-        return limit_exceeded + f"\n┖ <b>Task By</b> → {listener.tag}"
+        return limit_exceeded + f"\n╰●👤 <b>Task By</b> → {listener.tag}"
 
 
 """
@@ -266,18 +266,18 @@ async def pre_task_check(message):
         ut := await user_interval_check(user_id)
     ):
         msg.append(
-            f"┠ <b>Waiting Time</b> → {get_readable_time(ut)}\n┠ <i>User's Time Interval Restrictions</i> → {get_readable_time(uti)}"
+            f"╞●⏰ <b>Waiting Time</b> → {get_readable_time(ut)}\n╞●⏱️ <i>User's Time Interval Restrictions</i> → {get_readable_time(uti)}"
         )
     bmax_tasks = safe_int(user_dict.get("bmax_tasks", Config.BOT_MAX_TASKS))
     if bmax_tasks > 0 and len(await get_specific_tasks("All", False)) >= bmax_tasks:
         msg.append(
-            f"┠ Max Concurrent Bot's Tasks Limit exceeded.\n┠ Bot Tasks Limit : {bmax_tasks} task"
+            f"╞●🤖 Max Concurrent Bot's Tasks Limit exceeded.\n╞●📊 Bot Tasks Limit: {bmax_tasks} task(s)"
         )
 
     maxtask = safe_int(user_dict.get("maxtask", Config.USER_MAX_TASKS))
     if maxtask > 0 and len(await get_specific_tasks("All", user_id)) >= maxtask:
         msg.append(
-            f"┠ Max Concurrent User's Task(s) Limit exceeded! \n┠ User Task Limit : {maxtask} tasks"
+            f"╞●👥 Max Concurrent User's Task(s) Limit exceeded!\n╞●📊 User Task Limit: {maxtask} task(s)"
         )
 
     token_msg, button = await verify_token(user_id, button)
@@ -286,7 +286,9 @@ async def pre_task_check(message):
 
     if msg:
         username = message.from_user.mention
-        final_msg = f"⌬ <b>Task Checks :</b>\n│\n┟ <b>Name</b> → {username}\n┃\n"
+        final_msg = "•---------------------------•\n"
+        final_msg += "<blockquote>⧉ <b>𝐓𝐚𝐬𝐤 𝐂𝐡𝐞𝐜𝐤𝐬</b></blockquote>\n"
+        final_msg += f"╭●👤 <b>Name</b> → {username}\n"
         for i, m_part in enumerate(msg, 1):
             final_msg += f"{m_part}\n"
         if button is not None:
