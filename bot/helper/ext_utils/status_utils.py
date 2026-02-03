@@ -317,7 +317,7 @@ async def get_readable_message(sid, is_user, page_no=1, status="All", page_step=
         
         from ..telegram_helper.bot_commands import BotCommands
 
-        msg += f"╰<b>Stop »</b> <code>/{BotCommands.CancelTaskCommand[1]}_{task.gid()}</code>\n"
+        msg += f"╰<b>Stop »</b> /{BotCommands.CancelTaskCommand[1]}_{task.gid()}\n"
 
     if len(msg) == 0:
         if status == "All":
