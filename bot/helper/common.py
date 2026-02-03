@@ -13,6 +13,7 @@ from pyrogram.enums import ChatAction
 from .. import (
     DOWNLOAD_DIR,
     LOGGER,
+    cores,
     cpu_eater_lock,
     excluded_extensions,
     intervals,
@@ -140,7 +141,11 @@ class TaskConfig:
         self.thumb = None
         self.excluded_extensions = []
         self.files_to_proceed = []
-        self.is_super_chat = self.message.chat.type.name in ["SUPERGROUP", "CHANNEL"]
+        self.is_super_chat = self.message.chat.type.name in [
+            "SUPERGROUP",
+            "CHANNEL",
+            "FORUM",
+        ]
         self.source_url = None
         self.bot_pm = Config.BOT_PM or self.user_dict.get("BOT_PM")
         self.pm_msg = None
@@ -300,6 +305,12 @@ class TaskConfig:
                 (not self.up_dest and default_upload == "gd") or self.up_dest == "gd"
             ):
                 self.up_dest = self.user_dict.get("GDRIVE_ID") or Config.GDRIVE_ID
+            elif not self.is_uphoster and not self.is_clone and (
+                (not self.up_dest and default_upload == "ddl") or self.up_dest == "ddl"
+            ):
+                self.is_uphoster = True
+                if self.up_dest == "ddl":
+                    self.up_dest = ""
 
             if self.is_uphoster and not self.up_dest:
                 uphoster_service = self.user_dict.get("UPHOSTER_SERVICE", "gofile")
@@ -322,6 +333,12 @@ class TaskConfig:
                             or Config.PIXELDRAIN_KEY
                         ):
                             raise ValueError("No PixelDrain Key Found!")
+                    elif service == "vikingfile":
+                        if not (
+                            self.user_dict.get("VIKINGFILE_USER")
+                            or Config.VIKINGFILE_USER
+                        ):
+                            raise ValueError("No VikingFile User Hash Found!")
                 self.up_dest = "Uphoster"
 
             if not self.up_dest:
@@ -431,7 +448,12 @@ class TaskConfig:
                         self.hybrid_leech = False
                     else:
                         uploader_id = TgClient.user.me.id
-                        if chat.type.name not in ["SUPERGROUP", "CHANNEL", "GROUP"]:
+                        if chat.type.name not in [
+                            "SUPERGROUP",
+                            "CHANNEL",
+                            "GROUP",
+                            "FORUM",
+                        ]:
                             self.user_transmission = False
                             self.hybrid_leech = False
                         else:
@@ -455,7 +477,12 @@ class TaskConfig:
                             raise ValueError("Chat not found!")
                     else:
                         uploader_id = self.client.me.id
-                        if chat.type.name in ["SUPERGROUP", "CHANNEL", "GROUP"]:
+                        if chat.type.name in [
+                            "SUPERGROUP",
+                            "CHANNEL",
+                            "GROUP",
+                            "FORUM",
+                        ]:
                             member = await chat.get_member(uploader_id)
                             if (
                                 not member.privileges.can_manage_chat
@@ -622,7 +649,7 @@ class TaskConfig:
             index = self.options.index("-b")
             del self.options[index]
             if bulk_start or bulk_end:
-                del self.options[index + 1]
+                del self.options[index]
             self.options = " ".join(self.options)
             b_msg.append(f"{self.bulk[0]} -i {len(self.bulk)} {self.options}")
             msg = " ".join(b_msg)
@@ -721,6 +748,9 @@ class TaskConfig:
             for ffmpeg_cmd in cmds:
                 self.proceed_count = 0
                 cmd = [
+                    "taskset",
+                    "-c",
+                    f"{cores}",
                     BinConfig.FFMPEG_NAME,
                     "-hide_banner",
                     "-loglevel",

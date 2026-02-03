@@ -32,6 +32,8 @@ class Config:
     GOFILE_API = ""
     GOFILE_FOLDER_ID = ""
     PIXELDRAIN_KEY = ""
+    VIKINGFILE_USER = ""
+    PROTECTED_API = ""
     BUZZHEAVIER_API = ""
     GDRIVE_ID = ""
     GD_DESP = "Uploaded with WZ Bot"
@@ -161,7 +163,7 @@ class Config:
                     continue
                 if isinstance(value, str):
                     value = value.strip()
-                if attr == "DEFAULT_UPLOAD" and value != "gd":
+                if attr == "DEFAULT_UPLOAD" and value not in ("gd", "rc", "ddl"):
                     value = "rc"
                 elif attr in [
                     "BASE_URL",
@@ -223,7 +225,7 @@ class Config:
     def load_dict(cls, config_dict):
         for key, value in config_dict.items():
             if hasattr(cls, key):
-                if key == "DEFAULT_UPLOAD" and value != "gd":
+                if key == "DEFAULT_UPLOAD" and value not in ("gd", "rc", "ddl"):
                     value = "rc"
                 elif key in [
                     "BASE_URL",
