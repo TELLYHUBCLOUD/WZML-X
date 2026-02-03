@@ -264,7 +264,7 @@ async def get_readable_message(sid, is_user, page_no=1, status="All", page_step=
 
         # Add link for super chat (from original second code)
         if task.listener.is_super_chat:
-            msg += f" <b>❨ <a href='{task.listener.message.link}'>YourLink</a> ❩</b>"
+            msg += f"<b>❨<a href='{task.listener.message.link}'>Link</a>❩</b>"
         
         msg += "\n╭"  # Using first code style
 
