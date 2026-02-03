@@ -248,17 +248,25 @@ async def get_readable_message(sid, is_user, page_no=1, status="All", page_step=
         else:
             msg += f"\n<b>{index + start_position}.</b> {task_name}\n"
 
+        # Subname display (from original second code)
+        if task.listener.subname:
+            msg += f"╰ <b>Sub Name</b> → <i>{task.listener.subname}</i>\n"
+
         # User info (updated to first code style)
         username = task.listener.message.from_user.username
         first_name = task.listener.message.from_user.first_name or "NoNameUser"
         user_id = task.listener.message.from_user.id
 
         if username:
-            msg += f'<b>Task By: <a href="https://t.me/{username}">{first_name}</a> » ({user_id})\n'
+            msg += f'<b>Task By: <a href="https://t.me/{username}">{first_name}</a> » ({user_id})'
         else:
-            msg += f'<b>Task By: <a href="tg://user?id={user_id}">{first_name}</a></b> » ({user_id})\n'
+            msg += f'<b>Task By: <a href="tg://user?id={user_id}">{first_name}</a></b> » ({user_id})'
 
-        msg += "╭"  # Using first code style
+        # Add link for super chat (from original second code)
+        if task.listener.is_super_chat:
+            msg += f" <b>❨ <a href='{task.listener.message.link}'>YourLink</a> ❩</b>"
+        
+        msg += "\n╭"  # Using first code style
 
         if (
             tstatus not in [MirrorStatus.STATUS_SEED, MirrorStatus.STATUS_QUEUEUP]
@@ -304,8 +312,8 @@ async def get_readable_message(sid, is_user, page_no=1, status="All", page_step=
             msg += f"┊<b>Elapsed »</b> {get_readable_time(int(elapsed))}\n"
         
         msg += f"┊<b>Engine »</b> {task.engine}\n"
-        msg += f"┊<b>In Mode »</b> #{task.listener.mode[0]}\n"
-        msg += f"┊<b>Out Mode »</b> #{task.listener.mode[1]}\n"
+        msg += f"┊<b>In Mode »</b> {task.listener.mode[0]}\n"
+        msg += f"┊<b>Out Mode »</b> {task.listener.mode[1]}\n"
         
         from ..telegram_helper.bot_commands import BotCommands
 
