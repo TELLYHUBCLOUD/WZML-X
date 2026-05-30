@@ -26,7 +26,8 @@ pillow
 psutil
 pycountry
 pymongo
-pyrotgfork[fast]
+pyrotgfork
+pytgcrypto
 python-magic
 pytz
 qbittorrent-api
