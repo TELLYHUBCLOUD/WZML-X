@@ -159,7 +159,9 @@ async def get_buttons(key=None, edit_type=None, edit_mode=False):
             buttons.data_button("Create New File", "botset private new")
             buttons.data_button("Add/Delete File", "botset private edit")
         buttons.data_button("Back", "botset back", position="footer")
-        buttons.data_button("Close", "botset close", position="footer", style=ButtonStyle.DANGER)
+        buttons.data_button(
+            "Close", "botset close", position="footer", style=ButtonStyle.DANGER
+        )
         txt = "\n┠ ".join(
             [
                 f"<code>{fn}</code> → <b>{'Exists' if await aiopath.isfile(fn) else 'Not Exists'}</b>"
@@ -386,7 +388,7 @@ async def edit_variable(_, message, pre_message, key):
         await jdownloader.boot()
     elif key == "RSS_DELAY":
         add_job()
-    elif key == "USET_SERVERS":
+    elif key == "USENET_SERVERS":
         for s in value:
             await sabnzbd_client.set_special_config("servers", s)
 
@@ -902,21 +904,13 @@ async def edit_bot_settings(client, query):
         await query.answer()
         filename = data[2].rsplit(".zip", 1)[0]
         if await aiopath.exists(filename):
-            await (
-                await create_subprocess_shell(
-                    f"git add -f {filename} \
+            await (await create_subprocess_shell(f"git add -f {filename} \
                     && git commit -sm botsettings -q \
-                    && git push origin {Config.UPSTREAM_BRANCH} -qf"
-                )
-            ).wait()
+                    && git push origin {Config.UPSTREAM_BRANCH} -qf")).wait()
         else:
-            await (
-                await create_subprocess_shell(
-                    f"git rm -r --cached {filename} \
+            await (await create_subprocess_shell(f"git rm -r --cached {filename} \
                     && git commit -sm botsettings -q \
-                    && git push origin {Config.UPSTREAM_BRANCH} -qf"
-                )
-            ).wait()
+                    && git push origin {Config.UPSTREAM_BRANCH} -qf")).wait()
         await delete_message(message.reply_to_message)
         await delete_message(message)
 
