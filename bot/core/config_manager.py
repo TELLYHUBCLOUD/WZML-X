@@ -56,6 +56,7 @@ class Config:
     JD_PASS = ""
     MEGA_EMAIL = ""
     MEGA_PASSWORD = ""
+    DISABLE_MEGA = False
     DIRECT_LIMIT = 0
     MEGA_LIMIT = 0
     TORRENT_LIMIT = 0
@@ -82,6 +83,8 @@ class Config:
     MEDIA_GROUP = False
     HYBRID_LEECH = True
     HYPER_THREADS = 0
+    HYPER_PIPELINE = 4
+    HYPER_WRITE_BUFFER = 33554432
     HYDRA_IP = ""
     HYDRA_API_KEY = ""
     NAME_SWAP = ""
