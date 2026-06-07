@@ -49,6 +49,7 @@ from ..core.jdownloader_booter import jdownloader
 from ..helper.ext_utils.task_manager import start_from_queued
 from ..helper.mirror_leech_utils.rclone_utils.serve import rclone_serve_booter
 from ..helper.telegram_helper.button_build import ButtonMaker
+from ..helper.telegram_helper.bot_commands import BotCommands
 from ..helper.telegram_helper.message_utils import (
     delete_message,
     edit_message,
@@ -146,6 +147,10 @@ DEFAULT_DESP = {
     "AUTHOR_URL": "Author URL for Telegraph pages. Use channel URL for join button.",
     "INSTADL_API": "Instagram downloader API key.",
     "IMDB_TEMPLATE": "HTML template for IMDB results display.",
+    "IMAGES": "List of image URLs or file_ids for the gallery. Managed via /addimage command.",
+    "IMG_SEARCH": "Comma-separated keywords to auto-fetch wallpaper images on startup. e.g. anime, nature, space",
+    "IMG_PAGE": "Number of pages to search for each keyword in IMG_SEARCH. Each page has ~70 images. Default: 1",
+    "USE_IMAGES": "Enable random photo backgrounds on bot messages. Requires IMAGES list. Default: False",
     "INCOMPLETE_TASK_NOTIFIER": "Notify about incomplete tasks after restart. Default: False.",
     "INDEX_URL": "Google Drive Index URL for direct links.",
     "IS_TEAM_DRIVE": "Set True for TeamDrive uploads. Default: False.",
@@ -571,6 +576,8 @@ async def edit_variable(_, message, pre_message, key):
     if not isinstance(value, (str, int, float, bool, list, dict, type(None))):
         value = str(value)
     Config.set(key, value)
+    if key == "CMD_SUFFIX":
+        BotCommands.refresh_commands()
     await update_buttons(pre_message, key, "editvar", False)
     await delete_message(message)
     await database.update_config({key: value})
