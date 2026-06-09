@@ -17,6 +17,7 @@ from pyrogram.errors import (
 
 from ..core.tg_client import TgClient
 from ..helper.ext_utils.bot_utils import new_task
+from ..helper.ext_utils.status_utils import get_readable_time
 from ..helper.telegram_helper.button_build import ButtonMaker
 from ..helper.telegram_helper.message_utils import send_message, edit_message, delete_message
 
@@ -37,34 +38,41 @@ async def _safe_disconnect(client):
         pass
 
 
-def _timeout_str(secs):
-    m, s = divmod(int(secs), 60)
-    return f"{m}m {s}s" if m else f"{s}s"
-
-
 def _stop_btns():
     btns = ButtonMaker()
-    btns.data_button("Stop Process", data=_STOP)
+    btns.data_button("Cancel Process", data=_STOP)
     return btns.build_menu(1)
 
 
-def _build_header(user_name):
+def _header(user_name):
     return (
-        "⌬ <u><i><b>Pyrogram String Session Generator</b></i></u>\n\n"
-        f"│ Hello <b>{user_name}</b>!"
+        "⌬ <u><i><b>Pyrogram String Session Generator</b></i></u>\n│\n"
+        f"│ <b>User</b> → <b>{user_name}</b>!"
     )
 
 
-def _build_lines(api_id=None, api_hash=None, phone=None):
-    lines = []
+def _collected(api_id=None, api_hash=None, phone=None):
+    parts = []
     if api_id is not None:
-        lines.append(f"│\n│ <b>API_ID:</b> <code>{api_id}</code>")
+        parts.append(f"┠ <b>API_ID</b> → <code>{api_id}</code>")
     if api_hash is not None:
         masked = api_hash[:4] + "*" * (len(api_hash) - 4)
-        lines.append(f"│ <b>API_HASH:</b> <code>{masked}</code>")
+        parts.append(f"┠ <b>API_HASH</b> → <code>{masked}</code>")
     if phone is not None:
-        lines.append(f"│ <b>Phone:</b> <code>{phone}</code>")
-    return "\n".join(lines) if lines else ""
+        parts.append(f"┠ <b>Phone</b> → <code>{phone}</code>")
+    return "\n".join(parts) if parts else ""
+
+
+def _stop_msg(h, c):
+    return f"{h}\n┃\n" + (f"{c}\n┃\n┖ <b>Process Stopped.</b>" if c else "┖ <b>Process Stopped.</b>")
+
+
+def _timeout_msg(h, c):
+    return f"{h}\n┃\n" + (f"{c}\n┃\n┃ <b>Timed Out!</b>\n┖ <i>Process Stopped.</i>" if c else "┃ <b>Timed Out!</b>\n┖ <i>Process Stopped.</i>")
+
+
+def _error_msg(h, c, err):
+    return f"{h}\n┃\n" + (f"{c}\n┃\n┖ {err}" if c else f"┖ {err}")
 
 
 async def _invoke(user_id, timeout=_TIMEOUT):
@@ -77,7 +85,7 @@ async def _invoke(user_id, timeout=_TIMEOUT):
         event.set()
 
     async def _on_stop(_, query):
-        await query.answer("Process Stopped.", show_alert=True)
+        await query.answer()
         result[0] = _STOP
         event.set()
 
@@ -100,14 +108,14 @@ async def _invoke(user_id, timeout=_TIMEOUT):
     return result[0]
 
 
-async def _stop_or_timeout(value, msg, pyro_client=None):
+async def _stop_or_timeout(value, msg, h, c, pyro_client=None):
     if value is None:
-        await edit_message(msg, "│ <b>Timed Out!</b>\n│\n│ <i>Process Stopped.</i>")
+        await edit_message(msg, _timeout_msg(h, c))
         if pyro_client:
             await _safe_disconnect(pyro_client)
         return True
     if value == _STOP:
-        await edit_message(msg, "│ <b>Process Stopped.</b>")
+        await edit_message(msg, _stop_msg(h, c))
         if pyro_client:
             await _safe_disconnect(pyro_client)
         return True
@@ -122,81 +130,73 @@ async def gen_pyro_string(_, message):
     user_id = message.from_user.id
     user_name = message.from_user.first_name or "User"
     btns = _stop_btns()
-
-    header = _build_header(user_name)
+    h = _header(user_name)
 
     sess_msg = await send_message(
         message,
-        f"{header}\n\n"
-        "│ <i>Send your <code>API_ID</code> (also known as <code>APP_ID</code>).</i>\n"
-        "│ <i>Get it from <a href='https://my.telegram.org'>my.telegram.org</a>.</i>\n"
-        "│\n"
-        f"┖ <b>Timeout:</b> <code>{_timeout_str(_TIMEOUT)}</code>",
+        f"{h}\n┃\n"
+        "┃ <i>Send your <code>API_ID</code> (also known as <code>APP_ID</code>).</i>\n"
+        "┃ <i>Get it from <a href='https://my.telegram.org'>my.telegram.org</a>.</i>\n"
+        "┃\n"
+        f"┖ <b>Timeout:</b> <code>{get_readable_time(_TIMEOUT)}</code>",
         btns,
     )
 
     api_id = await _invoke(user_id)
-    if await _stop_or_timeout(api_id, sess_msg):
+    if await _stop_or_timeout(api_id, sess_msg, h, ""):
         return
 
     try:
         api_id = int(api_id)
     except ValueError:
-        return await edit_message(
-            sess_msg,
-            f"{header}\n\n"
-            "│ <i><code>APP_ID</code> is Invalid.</i>\n│\n│ <b>Process Stopped.</b>",
-        )
+        return await edit_message(sess_msg, _error_msg(h, "", "<i><code>APP_ID</code> is Invalid.</i>"))
 
+    c = _collected(api_id=api_id)
     await edit_message(
         sess_msg,
-        f"{header}\n\n"
-        f"{_build_lines(api_id=api_id)}\n\n"
-        "│ <i>Send your <code>API_HASH</code>.</i>\n"
-        "│ <i>Get it from <a href='https://my.telegram.org'>my.telegram.org</a>.</i>\n"
-        "│\n"
-        f"┖ <b>Timeout:</b> <code>{_timeout_str(_TIMEOUT)}</code>",
+        f"{h}\n\n{c}\n\n"
+        "┃ <i>Send your <code>API_HASH</code>.</i>\n"
+        "┃ <i>Get it from <a href='https://my.telegram.org'>my.telegram.org</a>.</i>\n"
+        "┃\n"
+        f"┖ <b>Timeout:</b> <code>{get_readable_time(_TIMEOUT)}</code>",
         btns,
     )
 
     api_hash = await _invoke(user_id)
-    if await _stop_or_timeout(api_hash, sess_msg):
+    if await _stop_or_timeout(api_hash, sess_msg, h, c):
         return
     if len(api_hash) <= 30:
-        return await edit_message(
-            sess_msg,
-            f"{header}\n\n"
-            f"{_build_lines(api_id=api_id)}\n\n"
-            "│ <i><code>API_HASH</code> is Invalid.</i>\n│\n│ <b>Process Stopped.</b>",
-        )
+        return await edit_message(sess_msg, _error_msg(h, c, "<i><code>API_HASH</code> is Invalid.</i>"))
+
+    c = _collected(api_id=api_id, api_hash=api_hash)
 
     while True:
         await edit_message(
             sess_msg,
-            f"{header}\n\n"
-            f"{_build_lines(api_id=api_id, api_hash=api_hash)}\n\n"
-            "│ <i>Send your phone number in International Format.</i>\n"
+            f"{h}\n┃\n{c}\n┃\n"
+            "┃ <i>Send your phone number in International Format.</i>\n"
             "┖ <b>Example:</b> <code>+14154566376</code>",
             btns,
         )
 
         phone_no = await _invoke(user_id)
-        if await _stop_or_timeout(phone_no, sess_msg):
+        if await _stop_or_timeout(phone_no, sess_msg, h, c):
             return
 
+        c_phone = _collected(api_id=api_id, api_hash=api_hash, phone=phone_no)
         await edit_message(
             sess_msg,
-            f"{header}\n\n"
-            f"{_build_lines(api_id=api_id, api_hash=api_hash, phone=phone_no)}\n\n"
-            f"│ Is <code>{phone_no}</code> correct?\n"
+            f"{h}\n┃\n{c_phone}\n┃\n"
+            f"┃ Is <code>{phone_no}</code> correct?\n"
             "┖ <b>Send:</b> <code>y</code> / <code>yes</code> | <code>n</code> / <code>no</code>",
             btns,
         )
 
         confirm = await _invoke(user_id)
-        if await _stop_or_timeout(confirm, sess_msg):
+        if await _stop_or_timeout(confirm, sess_msg, h, c_phone):
             return
         if confirm.lower() in ("y", "yes"):
+            c = c_phone
             break
 
     try:
@@ -207,7 +207,7 @@ async def gen_pyro_string(_, message):
             workdir="/usr/src/app",
         )
     except Exception as e:
-        return await edit_message(sess_msg, f"│ <b>Client Error:</b> <i>{e}</i>")
+        return await edit_message(sess_msg, _error_msg(h, c, f"<b>Client Error:</b> <i>{e}</i>"))
 
     try:
         await pyro_client.connect()
@@ -219,42 +219,26 @@ async def gen_pyro_string(_, message):
         user_code = await pyro_client.send_code(phone_no)
     except FloodWait as e:
         await _safe_disconnect(pyro_client)
-        return await edit_message(
-            sess_msg,
-            f"{header}\n\n"
-            f"{_build_lines(api_id=api_id, api_hash=api_hash, phone=phone_no)}\n\n"
-            f"│ <b>FloodWait:</b> <i>Retry after {_timeout_str(e.value)}.</i>",
-        )
+        return await edit_message(sess_msg, _error_msg(h, c, f"<b>FloodWait:</b> <i>Retry after {get_readable_time(e.value)}.</i>"))
     except ApiIdInvalid:
         await _safe_disconnect(pyro_client)
-        return await edit_message(
-            sess_msg,
-            f"{header}\n\n"
-            f"{_build_lines(api_id=api_id, api_hash=api_hash, phone=phone_no)}\n\n"
-            "│ <i><code>API_ID</code> and <code>API_HASH</code> are Invalid.</i>",
-        )
+        return await edit_message(sess_msg, _error_msg(h, c, "<i><code>API_ID</code> and <code>API_HASH</code> are Invalid.</i>"))
     except PhoneNumberInvalid:
         await _safe_disconnect(pyro_client)
-        return await edit_message(
-            sess_msg,
-            f"{header}\n\n"
-            f"{_build_lines(api_id=api_id, api_hash=api_hash, phone=phone_no)}\n\n"
-            "│ <i>Phone Number is Invalid.</i>",
-        )
+        return await edit_message(sess_msg, _error_msg(h, c, "<i>Phone Number is Invalid.</i>"))
 
     await edit_message(
         sess_msg,
-        f"{header}\n\n"
-        f"{_build_lines(api_id=api_id, api_hash=api_hash, phone=phone_no)}\n\n"
-        "│ <i>OTP sent to your Phone Number.</i>\n"
-        "│ <i>Enter in <code>1 2 3 4 5</code> format.</i>\n"
-        "│\n"
-        f"┖ <b>Timeout:</b> <code>{_timeout_str(_TIMEOUT)}</code>",
+        f"{h}\n┃\n{c}\n┃\n"
+        "┃ <i>OTP sent to your Phone Number.</i>\n"
+        "┃ <i>Enter in <code>1 2 3 4 5</code> format. (Space in between)</i>\n"
+        "┃\n"
+        f"┖ <b>Timeout:</b> <code>{get_readable_time(_TIMEOUT)}</code>",
         btns,
     )
 
     otp_str = await _invoke(user_id)
-    if await _stop_or_timeout(otp_str, sess_msg, pyro_client):
+    if await _stop_or_timeout(otp_str, sess_msg, h, c, pyro_client):
         return
 
     otp = " ".join(str(otp_str).split())
@@ -265,55 +249,34 @@ async def gen_pyro_string(_, message):
         await pyro_client.sign_in(phone_no, user_code.phone_code_hash, phone_code=otp)
     except PhoneCodeInvalid:
         await _safe_disconnect(pyro_client)
-        return await edit_message(
-            sess_msg,
-            f"{header}\n\n"
-            f"{_build_lines(api_id=api_id, api_hash=api_hash, phone=phone_no)}\n\n"
-            "│ <i>OTP is Invalid.</i>",
-        )
+        return await edit_message(sess_msg, _error_msg(h, c, "<i>OTP is Invalid.</i>"))
     except PhoneCodeExpired:
         await _safe_disconnect(pyro_client)
-        return await edit_message(
-            sess_msg,
-            f"{header}\n\n"
-            f"{_build_lines(api_id=api_id, api_hash=api_hash, phone=phone_no)}\n\n"
-            "│ <i>OTP has Expired.</i>",
-        )
+        return await edit_message(sess_msg, _error_msg(h, c, "<i>OTP has Expired.</i>"))
     except SessionPasswordNeeded:
         hint = await pyro_client.get_password_hint()
         await edit_message(
             sess_msg,
-            f"{header}\n\n"
-            f"{_build_lines(api_id=api_id, api_hash=api_hash, phone=phone_no)}\n\n"
-            "│ <i>Account is protected with <b>Two-Step Verification</b>.</i>\n"
-            f"│ <b>Hint:</b> <i>{hint}</i>\n"
-            "│\n"
-            "┖ <i>Send your Password.</i>",
+            f"{h}\n┃\n{c}\n┃\n"
+            "┃ <i>Account is protected with <b>Two-Step Verification</b>.</i>\n"
+            f"┃ <b>Hint:</b> <i>{hint}</i>\n"
+            "┃\n"
+            "┖ <i>Send your Password Now.</i>",
             btns,
         )
 
         password = await _invoke(user_id)
-        if await _stop_or_timeout(password, sess_msg, pyro_client):
+        if await _stop_or_timeout(password, sess_msg, h, c, pyro_client):
             return
 
         try:
             await pyro_client.check_password(password.strip())
         except Exception as e:
             await _safe_disconnect(pyro_client)
-            return await edit_message(
-                sess_msg,
-                f"{header}\n\n"
-                f"{_build_lines(api_id=api_id, api_hash=api_hash, phone=phone_no)}\n\n"
-                f"│ <b>Password Error:</b> <i>{e}</i>",
-            )
+            return await edit_message(sess_msg, _error_msg(h, c, f"<b>Password Error:</b> <i>{e}</i>"))
     except Exception as e:
         await _safe_disconnect(pyro_client)
-        return await edit_message(
-            sess_msg,
-            f"{header}\n\n"
-            f"{_build_lines(api_id=api_id, api_hash=api_hash, phone=phone_no)}\n\n"
-            f"│ <b>Sign In Error:</b> <i>{e}</i>",
-        )
+        return await edit_message(sess_msg, _error_msg(h, c, f"<b>Sign In Error:</b> <i>{e}</i>"))
 
     try:
         session_string = await pyro_client.export_session_string()
@@ -321,26 +284,20 @@ async def gen_pyro_string(_, message):
             "me",
             f"⌬ <b><u>Pyrogram Session Generated</u></b>\n\n"
             f"<code>{session_string}</code>\n\n"
-            f"<b>Via <a href='https://github.com/weebzone/WZML-X'>WZML-X</a> [ @WZML_X ]</b>",
+            f"<b>Via <a href='https://github.com/SilentDemonSD/WZML-X'>WZML-X</a> [ @WZML_X ]</b>",
             disable_web_page_preview=True,
         )
         await _safe_disconnect(pyro_client)
         await edit_message(
             sess_msg,
-            f"{header}\n\n"
-            f"{_build_lines(api_id=api_id, api_hash=api_hash, phone=phone_no)}\n\n"
-            "│ <b>String Session Generated Successfully!</b>\n"
-            "│\n"
+            f"{h}\n┃\n{c}\n┃\n"
+            "┠  <b>String Session Generated Successfully!</b>\n"
+            "┃\n"
             "┖ <i>Check your <b>Saved Messages</b>.</i>",
         )
     except Exception as e:
         await _safe_disconnect(pyro_client)
-        return await edit_message(
-            sess_msg,
-            f"{header}\n\n"
-            f"{_build_lines(api_id=api_id, api_hash=api_hash, phone=phone_no)}\n\n"
-            f"│ <b>Export Error:</b> <i>{e}</i>",
-        )
+        return await edit_message(sess_msg, _error_msg(h, c, f"<b>Export Error:</b> <i>{e}</i>"))
 
     for ext in ("session", "session-journal"):
         path = f"WZML-X-{user_id}.{ext}"
