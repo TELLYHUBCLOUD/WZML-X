@@ -228,11 +228,11 @@ class YtSelection:
         buttons = ButtonMaker()
         for qual in range(11):
             audio_format = f"{format}{qual}"
-            buttons.data_button(qual, f"ytq {audio_format}")
+            buttons.data_button(str(qual), f"ytq {audio_format}")
         buttons.data_button("Back", "ytq aq back")
-        buttons.data_button("Cancel", "ytq aq cancel")
+        buttons.data_button("Cancel", "ytq cancel")
         subbuttons = buttons.build_menu(5)
-        msg = f"Choose Audio{i} Qaulity:\n0 is best and 10 is worst\nTimeout: {get_readable_time(self._timeout - (time() - self._time))}"
+        msg = f"Choose Audio{i} Quality:\n0 is best and 10 is worst\nTimeout: {get_readable_time(self._timeout - (time() - self._time))}"
         await edit_message(self._reply_to, msg, subbuttons)
 
 
@@ -319,6 +319,7 @@ class YtDlp(TaskListener):
             "-opt": {},
             "-n": "",
             "-up": "",
+            "-gc": "",
             "-rcf": "",
             "-t": "",
             "-ca": "",
@@ -363,6 +364,7 @@ class YtDlp(TaskListener):
         self.select = args["-s"]
         self.name = args["-n"]
         self.up_dest = args["-up"]
+        self.category = args["-gc"]
         self.rc_flags = args["-rcf"]
         self.link = args["link"]
         self.compress = args["-z"]
@@ -447,7 +449,8 @@ class YtDlp(TaskListener):
         opt = opt or self.user_dict.get("YT_DLP_OPTIONS") or Config.YT_DLP_OPTIONS
 
         if not self.link and (reply_to := self.message.reply_to_message):
-            self.link = reply_to.text.split("\n", 1)[0].strip()
+            if reply_to.text:
+                self.link = reply_to.text.split("\n", 1)[0].strip()
 
         if not is_url(self.link):
             await send_message(
