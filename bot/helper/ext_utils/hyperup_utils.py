@@ -15,7 +15,7 @@ from mimetypes import guess_type
 from os import path as ospath
 from re import search as research
 
-from pyrogram import StopTransmission, raw
+from pyrogram import StopTransmission, raw, utils
 from pyrogram.errors import FilePartMissing, FloodPremiumWait, FloodWait
 from pyrogram.session import Session
 
@@ -133,6 +133,24 @@ class HypertgUpload(HypertgTransfer):
                                 raise
                             except CancelledError:
                                 return
+                            except (OSError, TimeoutError, ConnectionError):
+                                LOGGER.warning(
+                                    f"HypertgUL worker {wid} transport error "
+                                    f"attempt {attempt + 1}/5 — reconnecting"
+                                )
+                                try:
+                                    await s.stop()
+                                except Exception:
+                                    pass
+                                s = Session(up_client, dc_id, ak, tm, is_media=True)
+                                await self.start_session(s, mode=1)
+                                if ea is not None:
+                                    await s.invoke(
+                                        raw.functions.auth.ImportAuthorization(
+                                            id=ea.id, bytes=ea.bytes
+                                        )
+                                    )
+                                await sleep(1)
                             except Exception:
                                 if attempt == 4:
                                     break
@@ -328,11 +346,16 @@ class HypertgUpload(HypertgTransfer):
         input_media = self._build_media(input_file, mime_type, media_type, attributes, thumb_file)
 
         peer = await target_client.resolve_peer(target_chat_id)
+
+        parsed = await utils.parse_text_entities(target_client, caption or "", None, None)
+
         rpc = raw.functions.messages.SendMedia(
-            peer=peer, media=input_media, message=caption or "",
+            peer=peer,
+            media=input_media,
             random_id=target_client.rnd_id(),
             reply_to=raw.types.InputReplyToMessage(reply_to_msg_id=reply_to_message_id)
             if reply_to_message_id else None,
+            **parsed,
             silent=True,
         )
 
